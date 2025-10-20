@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "875845800587",
+    "project_id": "inzdemo-6c004",
+    "storage_bucket": "inzdemo-6c004.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:875845800587:android:3a7892b0f3c3137d56ba8e",
+        "android_client_info": {
+          "package_name": "com.example.timekeeper_demo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDNc31Pm1MSIiWe24_m-gzTBHyjGfWsDVE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:875845800587:android:5eb8960b3835759556ba8e",
+        "android_client_info": {
+          "package_name": "com.example.worktick"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDNc31Pm1MSIiWe24_m-gzTBHyjGfWsDVE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
