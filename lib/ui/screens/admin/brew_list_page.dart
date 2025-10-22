@@ -92,7 +92,11 @@ class _BrewListPageState extends State<BrewListPage> {
 
           Expanded(
             child: _showUserReport
-                ? ReportPage(uid: _selectedUid!, title: _selectedTitle)
+                ? ReportPage(
+                    uid: _selectedUid!,
+                    title: _selectedTitle,
+                    email: _selectedEmail, // ⬅️ PRZEKAZUJEMY E-MAIL
+                  )
                 : MyLogsBody(forUid: _selectedUid),
           ),
         ],

@@ -5,15 +5,21 @@ import '../../../data/models/work_log.dart';
 import '../../../data/models/report_models.dart';
 import '../../../data/services/report_service.dart';
 import '../../../data/repositories/worklog_repository.dart';
+import '../../../data/repositories/profile_repository.dart'; // ⬅️ NOWE
 import '../../../core/utils/time_utils.dart';
-import '../../../core/utils/i18n_utils.dart';
-import 'dart:io';
 import '../../../core/utils/csv_utils.dart';
 
 class ReportPage extends StatefulWidget {
-  final String uid;        // raport dla tego użytkownika
-  final String? title;     // opcjonalnie nazwa/ e-mail do wyświetlenia
-  const ReportPage({super.key, required this.uid, this.title});
+  final String uid;
+  final String? title; // np. displayName z listy
+  final String? email; // może być puste z listy – i tak dociągniemy z Firestore
+
+  const ReportPage({
+    super.key,
+    required this.uid,
+    this.title,
+    this.email,
+  });
 
   @override
   State<ReportPage> createState() => _ReportPageState();
@@ -22,6 +28,7 @@ class ReportPage extends StatefulWidget {
 class _ReportPageState extends State<ReportPage> {
   final _workRepo = WorklogRepository();
   final _service = ReportService();
+  final _profiles = ProfileRepository(); // ⬅️ NOWE
 
   late DateTime _month;
 
@@ -32,24 +39,22 @@ class _ReportPageState extends State<ReportPage> {
     _month = DateTime(now.year, now.month, 1);
   }
 
-  void _prevMonth() {
-    setState(() => _month = DateTime(_month.year, _month.month - 1, 1));
-  }
-
-  void _nextMonth() {
-    setState(() => _month = DateTime(_month.year, _month.month + 1, 1));
-  }
+  void _prevMonth() => setState(() => _month = DateTime(_month.year, _month.month - 1, 1));
+  void _nextMonth() => setState(() => _month = DateTime(_month.year, _month.month + 1, 1));
 
   @override
   Widget build(BuildContext context) {
     final y = _month.year;
     final m = _month.month;
-    final header = toBeginningOfSentenceCase(DateFormat.yMMMM(context.locale.toString()).format(_month)) ?? '';
+    final header = toBeginningOfSentenceCase(
+          DateFormat.yMMMM(context.locale.toString()).format(_month),
+        ) ??
+        '';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Pasek tytułu + nawigacja miesięcy + eksport
+        // Nawigacja po miesiącach + tytuł
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
           child: Row(
@@ -89,7 +94,7 @@ class _ReportPageState extends State<ReportPage> {
 
               return Column(
                 children: [
-                  // Sumy
+                  // Pasek sumy + eksport
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
                     child: Row(
@@ -101,7 +106,16 @@ class _ReportPageState extends State<ReportPage> {
                           icon: const Icon(Icons.file_download),
                           label: const Text('CSV'),
                           onPressed: () async {
-                            final path = await CsvUtils.saveMonthlyReportCsv(report);
+                            // ⬇️ NAJPIERW DOŚCIĄGNIJ PROFIL, ŻEBY MIEĆ E-MAIL
+                            final p = await _profiles.fetchProfile(widget.uid);
+                            final path = await CsvUtils.saveMonthlyReportCsv(
+                              report,
+                              logs: logs,
+                              userDisplay: widget.title ?? p?.displayName,
+                              userEmail: widget.email?.isNotEmpty == true
+                                  ? widget.email
+                                  : p?.email, // ⬅️ preferuj email z Firestore
+                            );
                             if (!mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(content: Text('Zapisano CSV: $path')),
@@ -113,28 +127,25 @@ class _ReportPageState extends State<ReportPage> {
                           icon: const Icon(Icons.ios_share),
                           label: Text('app.share'.tr()),
                           onPressed: () async {
-                            final path = await CsvUtils.saveMonthlyReportCsv(report);
-                            await Share.shareXFiles([XFile(path)], text: 'WorkTick ${report.year}-${report.month.toString().padLeft(2, '0')}');
+                            final p = await _profiles.fetchProfile(widget.uid);
+                            final path = await CsvUtils.saveMonthlyReportCsv(
+                              report,
+                              logs: logs,
+                              userDisplay: widget.title ?? p?.displayName,
+                              userEmail: widget.email?.isNotEmpty == true
+                                  ? widget.email
+                                  : p?.email,
+                            );
+                            await Share.shareXFiles(
+                              [XFile(path)],
+                              text:
+                                  'WorkTick ${report.year}-${report.month.toString().padLeft(2, '0')}',
+                            );
                           },
                         )
                       ],
                     ),
                   ),
-
-                  // Podział na typy pracy
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Wrap(
-                      spacing: 12,
-                      runSpacing: 8,
-                      children: report.byWorkType.map((w) {
-                        return Chip(
-                          label: Text('${trWorkType(w.workType)}: ${formatDurationHM(w.minutes)}'),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
                   const Divider(height: 1),
 
                   // Lista dni
@@ -146,17 +157,13 @@ class _ReportPageState extends State<ReportPage> {
                             separatorBuilder: (_, __) => const Divider(height: 1),
                             itemBuilder: (context, i) {
                               final d = report.byDay[i];
-                              final dateLabel = DateFormat.yMMMMEEEEd(context.locale.toString()).format(d.day);
+                              final dateLabel = DateFormat.yMMMMEEEEd(context.locale.toString())
+                                  .format(d.day);
                               final totalDay = formatDurationHM(d.minutesTotal);
-
-                              final types = ['office','remote','field']
-                                  .map((t) => '${trWorkType(t)}: ${formatDurationHM(d.minutesByWorkType[t] ?? 0)}')
-                                  .join(' · ');
 
                               return ListTile(
                                 leading: const Icon(Icons.calendar_today),
                                 title: Text('$dateLabel  ·  $totalDay'),
-                                subtitle: Text(types),
                               );
                             },
                           ),

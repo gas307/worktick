@@ -14,7 +14,11 @@ class ProfileRepository {
           .collection('profiles')
           .orderBy('updatedAt', descending: true)
           .snapshots();
-
+  Future<Profile?> fetchProfile(String uid) async {
+    final doc = await _db.collection('profiles').doc(uid).get();
+    if (!doc.exists) return null;
+    return Profile.fromDoc(doc);
+  }
   Future<void> ensureProfileBasics(
     String uid,
     String? email,
